@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mundial de la Sostenibilidad • Juego Táctico de Tarjetas (Bond et al. 2012)</title>
+  <meta name="description" content="Aplicación web didáctica e interactiva para el juego de tarjetas del Mundial de la Sostenibilidad basado en Bond, Morrison-Saunders & Pope (2012).">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- FontAwesome Icons CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- SortableJS para Drag and Drop -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+  
+  <!-- Chart.js para Gráfico de Radar -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- SweetAlert2 para Notificaciones y Modales -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
+  <!-- Canvas Confetti para Efectos de Celebración -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+
+  <!-- Estilos Personalizados -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="stadium-bg text-slate-100 min-h-screen">
+
+  <!-- Application Main Container -->
+  <main id="app-view" class="container mx-auto px-4 py-8 max-w-7xl">
+    <!-- El contenido es renderizado dinámicamente por app.js -->
+  </main>
+
+  <!-- Footer Info -->
+  <footer class="text-center py-6 text-xs text-gray-500 border-t border-slate-800/80 mt-12">
+    <p>Mundial de la Sostenibilidad • Basado en <em>Bond, A., Morrison-Saunders, A., & Pope, J. (2012). Sustainability assessment: the state of the art.</em></p>
+    <p class="mt-1">Gestión Sostenible • Universidad EAN</p>
+  </footer>
+
+  <!-- Scripts de la Aplicación -->
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

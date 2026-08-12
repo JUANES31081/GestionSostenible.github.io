@@ -1,0 +1,24 @@
+# OS / editor artifacts
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs and local env
+*.log
+.env
+.env.*
+
+# Node / build artifacts (si luego se agrega tooling)
+node_modules/
+dist/
+build/
+coverage/
+
+# Python cache (si se usa servidor local con Python)
+__pycache__/
+*.py[cod]
+
+# Mantener explícitamente los entregables académicos dentro del repo
+!Artículo 6 Sustainability assessment.pdf
+!Mundial_Sostenibilidad_Tarjetas_y_Tablero.docx
