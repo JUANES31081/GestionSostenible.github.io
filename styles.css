@@ -203,6 +203,105 @@ h1, h2, h3, h4, .font-heading {
   animation: pulseGlow 3s infinite ease-in-out;
 }
 
+/* Seccion QR estetica */
+.qr-share-panel {
+  background:
+    radial-gradient(circle at 12% 18%, rgba(34, 211, 238, 0.2), transparent 38%),
+    radial-gradient(circle at 86% 80%, rgba(14, 165, 233, 0.2), transparent 35%),
+    linear-gradient(145deg, rgba(9, 20, 34, 0.96), rgba(5, 12, 24, 0.95));
+}
+
+.qr-wave {
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+  filter: blur(10px);
+}
+
+.qr-wave-1 {
+  width: 280px;
+  height: 280px;
+  top: -80px;
+  right: -70px;
+  background: rgba(34, 211, 238, 0.22);
+}
+
+.qr-wave-2 {
+  width: 220px;
+  height: 220px;
+  bottom: -70px;
+  left: -60px;
+  background: rgba(14, 165, 233, 0.18);
+}
+
+.qr-frame {
+  position: relative;
+  width: min(100%, 320px);
+  padding: 1rem;
+  border-radius: 1.5rem;
+  background: linear-gradient(160deg, rgba(186, 230, 253, 0.1), rgba(14, 116, 144, 0.18));
+  border: 1px solid rgba(103, 232, 249, 0.45);
+  box-shadow: 0 24px 48px rgba(5, 15, 29, 0.55);
+}
+
+.qr-code-shell {
+  background: #ffffff;
+  border-radius: 1rem;
+  padding: 0.8rem;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 16px 28px rgba(2, 8, 23, 0.4);
+}
+
+.qr-image {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 0.55rem;
+}
+
+.qr-ring {
+  position: absolute;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  pointer-events: none;
+}
+
+.qr-ring-1 {
+  width: 95%;
+  height: 95%;
+  top: 2.5%;
+  left: 2.5%;
+  animation: qrOrbit 9s linear infinite;
+}
+
+.qr-ring-2 {
+  width: 108%;
+  height: 108%;
+  top: -4%;
+  left: -4%;
+  border-color: rgba(125, 211, 252, 0.28);
+  animation: qrOrbitReverse 13s linear infinite;
+}
+
+@keyframes qrOrbit {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(180deg) scale(1.03); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes qrOrbitReverse {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(-180deg) scale(0.98); }
+  100% { transform: rotate(-360deg) scale(1); }
+}
+
+@media (max-width: 768px) {
+  .qr-frame {
+    width: min(100%, 270px);
+  }
+}
+
 /* SweetAlert2 con paleta gris raton */
 .swal2-popup {
   border-radius: 1rem;

@@ -7,6 +7,8 @@ const STORAGE_KEYS = {
   TEAMS_GENERATED: "mundial_sostenibilidad_teams_generated"
 };
 
+const APP_PUBLIC_URL = "https://juanes31081.github.io/GestionSostenible.github.io/";
+
 // Estado Global de la App
 const state = {
   currentUser: null, // { type: 'country' | 'admin', countryId?: string }
@@ -223,6 +225,62 @@ function renderIndexView(container) {
             <div class="lg:col-span-7 bg-slate-900/60 rounded-2xl p-6 border border-slate-800 flex flex-col justify-between">
               <div id="teams-result-container">
                 ${renderTeamsResultHTML()}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sección QR de Acceso Rápido -->
+      <section class="max-w-6xl mx-auto px-4">
+        <div class="qr-share-panel rounded-3xl p-6 md:p-8 border border-cyan-400/30 shadow-2xl overflow-hidden relative">
+          <div class="qr-wave qr-wave-1"></div>
+          <div class="qr-wave qr-wave-2"></div>
+
+          <div class="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            <div class="lg:col-span-7">
+              <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-cyan-200 text-xs font-semibold mb-4">
+                <i class="fa-solid fa-qrcode text-cyan-300"></i>
+                Acceso Rápido a la Plataforma
+              </div>
+
+              <h2 class="text-2xl md:text-3xl font-extrabold text-white leading-tight mb-3">
+                Escanea el QR y entra al
+                <span class="text-cyan-300">Mundial de la Sostenibilidad</span>
+              </h2>
+
+              <p class="text-slate-300 text-sm md:text-base leading-relaxed max-w-2xl">
+                Comparte este código en clase para que cualquier participante pueda abrir la actividad desde su celular en segundos.
+                Ideal para iniciar la sesión sin escribir enlaces manualmente.
+              </p>
+
+              <div class="mt-5 flex flex-wrap gap-3">
+                <a href="${APP_PUBLIC_URL}" target="_blank" rel="noopener noreferrer" class="px-5 py-2.5 rounded-xl bg-cyan-500/90 hover:bg-cyan-400 text-slate-950 font-bold text-sm transition shadow-lg shadow-cyan-500/30 flex items-center gap-2">
+                  <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                  Abrir Sitio
+                </a>
+                <a href="${APP_PUBLIC_URL}" class="px-5 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-600 text-slate-200 font-semibold text-sm transition flex items-center gap-2">
+                  <i class="fa-solid fa-link"></i>
+                  ${APP_PUBLIC_URL}
+                </a>
+              </div>
+            </div>
+
+            <div class="lg:col-span-5 flex justify-center lg:justify-end">
+              <div class="qr-frame pulse-glow">
+                <div class="qr-ring qr-ring-1"></div>
+                <div class="qr-ring qr-ring-2"></div>
+                <div class="qr-code-shell">
+                  <img
+                    src="https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(APP_PUBLIC_URL)}"
+                    alt="Código QR para acceder al Mundial de la Sostenibilidad"
+                    class="qr-image"
+                    loading="lazy"
+                  />
+                </div>
+                <p class="text-center text-xs text-cyan-100/90 mt-3 font-semibold tracking-wide">
+                  Escanéame
+                </p>
               </div>
             </div>
           </div>
