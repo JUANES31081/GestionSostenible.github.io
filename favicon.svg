@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Globo terraqueo sostenible">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="100%" stop-color="#0e7490"/>
+    </linearGradient>
+  </defs>
+
+  <circle cx="32" cy="32" r="30" fill="url(#bg)"/>
+  <circle cx="32" cy="32" r="22" fill="none" stroke="#ecfeff" stroke-width="3"/>
+
+  <path d="M10 32h44M32 10v44" fill="none" stroke="#ecfeff" stroke-width="3" stroke-linecap="round"/>
+  <path d="M16 22c6 3 11 4 16 4s10-1 16-4M16 42c6-3 11-4 16-4s10 1 16 4" fill="none" stroke="#ecfeff" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M25 8c-5 6-8 15-8 24s3 18 8 24M39 8c5 6 8 15 8 24s-3 18-8 24" fill="none" stroke="#ecfeff" stroke-width="2.6" stroke-linecap="round"/>
+
+  <path d="M44 45c5 0 9 4 9 9-5 0-9-4-9-9z" fill="#86efac"/>
+  <path d="M46 46c2 2 3 4 3 6" fill="none" stroke="#166534" stroke-width="1.5" stroke-linecap="round"/>
+</svg>
