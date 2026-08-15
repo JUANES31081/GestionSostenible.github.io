@@ -4,23 +4,65 @@
 const STORAGE_KEYS = {
   SESSION: "mundial_sostenibilidad_session",
   SUBMISSIONS: "mundial_sostenibilidad_submissions",
-  TEAMS_GENERATED: "mundial_sostenibilidad_teams_generated"
+  TEAMS_GENERATED: "mundial_sostenibilidad_teams_generated",
+  SESSIONS: "mundial_sostenibilidad_sessions",
+  ACTIVE_SESSION: "mundial_sostenibilidad_active_session"
 };
 
+const DEFAULT_SESSION_ID = "default";
+
 const APP_PUBLIC_URL = "https://juanes31081.github.io/GestionSostenible.github.io/";
+
+const CLOUD_CONFIG = {
+  WEB_APP_URL: "https://script.google.com/macros/s/AKfycbyAz0_aqjY8vJjEa2_27PmeJ9FakLq8WCAvUUkckkKN9v-znXGxmQad_5A2ADgPa5xJ/exec"
+};
 
 // Estado Global de la App
 const state = {
   currentUser: null, // { type: 'country' | 'admin', countryId?: string }
   submissions: {},   // { inglaterra: { ATAQUE: [], DEFENSA: [], ARQUERO: [], pool: [], submittedAt: ... }, ... }
+  currentSessionId: DEFAULT_SESSION_ID,
+  availableSessions: [DEFAULT_SESSION_ID],
   generatedTeams: null,
   sortableInstances: {},
   radarChartInstance: null
 };
 
+function sanitizeSessionId(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  return normalized || DEFAULT_SESSION_ID;
+}
+
+function getSessionIdFromUrl() {
+  try {
+    return sanitizeSessionId(new URLSearchParams(window.location.search).get("session"));
+  } catch (e) {
+    return DEFAULT_SESSION_ID;
+  }
+}
+
+function updateUrlWithSession(sessionId) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("session", sessionId);
+  window.history.replaceState({}, "", url.toString());
+}
+
+function getPublicSessionUrl() {
+  const url = new URL(APP_PUBLIC_URL);
+  url.searchParams.set("session", getCurrentSessionId());
+  return url.toString();
+}
+
 // Inicialización de la aplicación
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   loadStateFromStorage();
+  await hydrateSubmissionsFromCloud(false);
   setupEventListeners();
   renderCurrentView();
 });
@@ -53,6 +95,33 @@ function loadStateFromStorage() {
       state.generatedTeams = null;
     }
   }
+
+  const savedSessions = localStorage.getItem(STORAGE_KEYS.SESSIONS);
+  if (savedSessions) {
+    try {
+      const parsed = JSON.parse(savedSessions);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        state.availableSessions = parsed.map(sanitizeSessionId).filter(Boolean);
+      }
+    } catch (e) {
+      state.availableSessions = [DEFAULT_SESSION_ID];
+    }
+  }
+
+  if (!state.availableSessions.includes(DEFAULT_SESSION_ID)) {
+    state.availableSessions.unshift(DEFAULT_SESSION_ID);
+  }
+
+  const savedActiveSession = localStorage.getItem(STORAGE_KEYS.ACTIVE_SESSION);
+  const activeFromUrl = getSessionIdFromUrl();
+  const activeSession = sanitizeSessionId(activeFromUrl || savedActiveSession || DEFAULT_SESSION_ID);
+
+  state.currentSessionId = activeSession;
+  if (!state.availableSessions.includes(activeSession)) {
+    state.availableSessions.unshift(activeSession);
+  }
+  saveSessionCatalog();
+  updateUrlWithSession(activeSession);
 }
 
 // Guardar cambios en localStorage
@@ -66,6 +135,283 @@ function saveSessionToStorage() {
   } else {
     localStorage.removeItem(STORAGE_KEYS.SESSION);
   }
+}
+
+function saveSessionCatalog() {
+  const uniqueSessions = Array.from(new Set(state.availableSessions.map(sanitizeSessionId))).filter(Boolean);
+  if (!uniqueSessions.includes(DEFAULT_SESSION_ID)) {
+    uniqueSessions.unshift(DEFAULT_SESSION_ID);
+  }
+
+  state.availableSessions = uniqueSessions;
+  localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(state.availableSessions));
+  localStorage.setItem(STORAGE_KEYS.ACTIVE_SESSION, state.currentSessionId);
+}
+
+function getCurrentSessionId() {
+  return sanitizeSessionId(state.currentSessionId || DEFAULT_SESSION_ID);
+}
+
+function ensureSessionInCatalog(sessionId) {
+  const normalized = sanitizeSessionId(sessionId);
+  if (!state.availableSessions.includes(normalized)) {
+    state.availableSessions.unshift(normalized);
+    saveSessionCatalog();
+  }
+}
+
+async function switchSession(sessionId, showToast = true) {
+  const normalized = sanitizeSessionId(sessionId);
+  state.currentSessionId = normalized;
+  ensureSessionInCatalog(normalized);
+  updateUrlWithSession(normalized);
+  await hydrateSubmissionsFromCloud(showToast);
+  renderCurrentView();
+}
+
+async function handleSessionSelection(sessionId) {
+  await switchSession(sessionId, true);
+}
+
+async function promptCreateSession() {
+  const result = await Swal.fire({
+    title: "Crear nueva sesión",
+    input: "text",
+    inputLabel: "Nombre o código de sesión",
+    inputPlaceholder: "ej: ean-2026-grupo-a",
+    showCancelButton: true,
+    confirmButtonText: "Crear y usar",
+    confirmButtonColor: "#10b981",
+    inputValidator: (value) => {
+      const normalized = sanitizeSessionId(value);
+      if (!normalized) return "Ingresa un nombre válido";
+      return null;
+    }
+  });
+
+  if (!result.isConfirmed) return;
+  await switchSession(result.value, true);
+}
+
+function renderSessionSelectorBlock(compact = false) {
+  const sessions = state.availableSessions
+    .map(sanitizeSessionId)
+    .filter(Boolean);
+
+  const options = sessions
+    .map(id => `<option value="${id}" ${id === getCurrentSessionId() ? "selected" : ""}>${id}</option>`)
+    .join("");
+
+  if (compact) {
+    return `
+      <div class="flex items-center gap-2">
+        <label class="text-xs text-gray-400">Sesión:</label>
+        <select onchange="handleSessionSelection(this.value)" class="px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-gray-200 text-xs">
+          ${options}
+        </select>
+        <button onclick="promptCreateSession()" class="px-2.5 py-1 rounded-lg bg-emerald-900/60 hover:bg-emerald-800/70 border border-emerald-700/50 text-emerald-300 text-xs font-semibold transition">
+          <i class="fa-solid fa-plus"></i>
+        </button>
+      </div>
+    `;
+  }
+
+  return `
+    <section class="max-w-6xl mx-auto px-4">
+      <div class="glass-panel rounded-2xl p-4 border border-cyan-700/30 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div>
+          <h3 class="text-sm font-bold text-cyan-300 flex items-center gap-2">
+            <i class="fa-solid fa-database"></i>
+            Sesión de Trabajo
+          </h3>
+          <p class="text-xs text-gray-400 mt-1">Todos los envíos y reinicios se guardan por sesión activa.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <select onchange="handleSessionSelection(this.value)" class="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-gray-200 text-sm min-w-[220px]">
+            ${options}
+          </select>
+          <button onclick="promptCreateSession()" class="px-3 py-2 rounded-xl bg-emerald-900/60 hover:bg-emerald-800/70 border border-emerald-700/50 text-emerald-300 text-sm font-semibold transition flex items-center gap-2">
+            <i class="fa-solid fa-plus"></i>
+            Nueva Sesión
+          </button>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function isCloudSyncEnabled() {
+  return !!CLOUD_CONFIG.WEB_APP_URL;
+}
+
+function buildEmptySubmission(countryId) {
+  const country = MUNDIAL_DATA.countries[countryId];
+  return {
+    ATAQUE: [],
+    DEFENSA: [],
+    ARQUERO: [],
+    pool: country ? country.cards.map(c => c.id) : [],
+    submittedAt: null
+  };
+}
+
+function normalizeSubmission(countryId, raw) {
+  const country = MUNDIAL_DATA.countries[countryId];
+  if (!country) return null;
+
+  const validCardIds = new Set(country.cards.map(c => c.id));
+  const ataque = Array.isArray(raw?.ATAQUE) ? raw.ATAQUE.filter(id => validCardIds.has(id)) : [];
+  const defensa = Array.isArray(raw?.DEFENSA) ? raw.DEFENSA.filter(id => validCardIds.has(id)) : [];
+  const arquero = Array.isArray(raw?.ARQUERO) ? raw.ARQUERO.filter(id => validCardIds.has(id)) : [];
+  const occupied = new Set([...ataque, ...defensa, ...arquero]);
+
+  let pool = Array.isArray(raw?.pool) ? raw.pool.filter(id => validCardIds.has(id) && !occupied.has(id)) : [];
+  if (!pool.length) {
+    pool = country.cards.map(c => c.id).filter(id => !occupied.has(id));
+  }
+
+  return {
+    ATAQUE: ataque,
+    DEFENSA: defensa,
+    ARQUERO: arquero,
+    pool,
+    submittedAt: raw?.submittedAt || null
+  };
+}
+
+function toFormBody(params) {
+  const form = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    form.append(key, value == null ? "" : String(value));
+  });
+  return form;
+}
+
+async function cloudGetSubmissions() {
+  const url = new URL(CLOUD_CONFIG.WEB_APP_URL);
+  url.searchParams.set("action", "getSubmissions");
+  url.searchParams.set("sessionId", getCurrentSessionId());
+
+  const resp = await fetch(url.toString(), { method: "GET" });
+  if (!resp.ok) {
+    throw new Error("No se pudo consultar Apps Script");
+  }
+
+  return resp.json();
+}
+
+async function cloudPost(action, payload = {}) {
+  const body = toFormBody({
+    action,
+    sessionId: getCurrentSessionId(),
+    ...payload
+  });
+
+  const resp = await fetch(CLOUD_CONFIG.WEB_APP_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
+    },
+    body: body.toString()
+  });
+
+  if (!resp.ok) {
+    throw new Error("No se pudo escribir en Apps Script");
+  }
+
+  return resp.json();
+}
+
+async function hydrateSubmissionsFromCloud(showToast = false) {
+  if (!isCloudSyncEnabled()) return false;
+
+  try {
+    const data = await cloudGetSubmissions();
+    if (!data?.ok || !Array.isArray(data.submissions)) {
+      throw new Error(data?.error || "Respuesta inválida desde Apps Script");
+    }
+
+    const cloudSubmissions = {};
+    data.submissions.forEach(row => {
+      const countryId = row?.countryId;
+      if (!countryId || !MUNDIAL_DATA.countries[countryId]) return;
+
+      let payload = {};
+      try {
+        payload = JSON.parse(row.payloadJson || "{}");
+      } catch (e) {
+        payload = {};
+      }
+
+      const normalized = normalizeSubmission(countryId, payload);
+      if (normalized) {
+        cloudSubmissions[countryId] = normalized;
+      }
+    });
+
+    state.submissions = cloudSubmissions;
+    saveSubmissionsToStorage();
+
+    if (showToast) {
+      Swal.fire({
+        title: "Sincronizado",
+        text: `Se actualizaron los envíos de la sesión ${getCurrentSessionId()}.`,
+        icon: "success",
+        timer: 1200,
+        showConfirmButton: false,
+        toast: true,
+        position: "top-end"
+      });
+    }
+
+    return true;
+  } catch (error) {
+    if (showToast) {
+      Swal.fire({
+        title: "Sin conexión con nube",
+        text: "No se pudo cargar desde Apps Script. Se muestran datos locales.",
+        icon: "warning",
+        timer: 2200,
+        showConfirmButton: false,
+        toast: true,
+        position: "top-end"
+      });
+    }
+    return false;
+  }
+}
+
+async function saveCountrySubmissionToCloud(countryId) {
+  if (!isCloudSyncEnabled()) return false;
+
+  const normalized = normalizeSubmission(countryId, state.submissions[countryId] || {});
+  if (!normalized) return false;
+
+  try {
+    const result = await cloudPost("saveSubmission", {
+      countryId,
+      payload: JSON.stringify(normalized)
+    });
+    return !!result?.ok;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function resetSessionInCloud() {
+  if (!isCloudSyncEnabled()) return false;
+
+  try {
+    const result = await cloudPost("resetSession", {});
+    return !!result?.ok;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function refreshAdminSubmissions() {
+  await hydrateSubmissionsFromCloud(true);
+  renderCurrentView();
 }
 
 // Enrutador de vistas
@@ -111,6 +457,8 @@ function logout() {
    1. VISTA ÍNDICE / PRINCIPAL (Selección de País y Generador)
    ========================================================================== */
 function renderIndexView(container) {
+  const sessionPublicUrl = getPublicSessionUrl();
+
   container.innerHTML = `
     <div class="space-y-12 animate-fade-in">
       
@@ -142,6 +490,8 @@ function renderIndexView(container) {
           Acceso Exclusivo para Moderadores / Docentes
         </button>
       </div>
+
+      ${renderSessionSelectorBlock(false)}
 
       <!-- Selección de Países (Tarjetas de Equipos) -->
       <section class="max-w-6xl mx-auto px-4">
@@ -255,13 +605,13 @@ function renderIndexView(container) {
               </p>
 
               <div class="mt-5 flex flex-wrap gap-3">
-                <a href="${APP_PUBLIC_URL}" target="_blank" rel="noopener noreferrer" class="px-5 py-2.5 rounded-xl bg-cyan-500/90 hover:bg-cyan-400 text-slate-950 font-bold text-sm transition shadow-lg shadow-cyan-500/30 flex items-center gap-2">
+                <a href="${sessionPublicUrl}" target="_blank" rel="noopener noreferrer" class="px-5 py-2.5 rounded-xl bg-cyan-500/90 hover:bg-cyan-400 text-slate-950 font-bold text-sm transition shadow-lg shadow-cyan-500/30 flex items-center gap-2">
                   <i class="fa-solid fa-arrow-up-right-from-square"></i>
                   Abrir Sitio
                 </a>
-                <a href="${APP_PUBLIC_URL}" class="px-5 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-600 text-slate-200 font-semibold text-sm transition flex items-center gap-2">
+                <a href="${sessionPublicUrl}" class="px-5 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-600 text-slate-200 font-semibold text-sm transition flex items-center gap-2">
                   <i class="fa-solid fa-link"></i>
-                  ${APP_PUBLIC_URL}
+                  ${sessionPublicUrl}
                 </a>
               </div>
             </div>
@@ -272,7 +622,7 @@ function renderIndexView(container) {
                 <div class="qr-ring qr-ring-2"></div>
                 <div class="qr-code-shell">
                   <img
-                    src="https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(APP_PUBLIC_URL)}"
+                    src="https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(sessionPublicUrl)}"
                     alt="Código QR para acceder al Mundial de la Sostenibilidad"
                     class="qr-image"
                     loading="lazy"
@@ -461,10 +811,11 @@ function openCountryLoginModal(countryId) {
         return false;
       }
     }
-  }).then((result) => {
+  }).then(async (result) => {
     if (result.isConfirmed && result.value) {
       state.currentUser = result.value;
       saveSessionToStorage();
+      await hydrateSubmissionsFromCloud(false);
       renderCurrentView();
     }
   });
@@ -498,10 +849,11 @@ function openAdminLoginModal() {
         return false;
       }
     }
-  }).then((result) => {
+  }).then(async (result) => {
     if (result.isConfirmed && result.value) {
       state.currentUser = result.value;
       saveSessionToStorage();
+      await hydrateSubmissionsFromCloud(false);
       renderCurrentView();
     }
   });
@@ -1029,14 +1381,19 @@ function confirmSubmission(countryId) {
     confirmButtonText: "Sí, Enviar al Moderador",
     cancelButtonText: "Seguir Editando",
     confirmButtonColor: "#10b981"
-  }).then(result => {
+  }).then(async result => {
     if (result.isConfirmed) {
       state.submissions[countryId].submittedAt = new Date().toISOString();
       saveSubmissionsToStorage();
+      const cloudSaved = await saveCountrySubmissionToCloud(countryId);
       renderCurrentView();
       
       confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-      Swal.fire("¡Enviado con éxito!", "Tu alineación ha sido enviada al panel del moderador.", "success");
+      if (cloudSaved) {
+        Swal.fire("¡Enviado con éxito!", "Tu alineación fue enviada y sincronizada para el moderador.", "success");
+      } else {
+        Swal.fire("Enviado en este dispositivo", "No se pudo sincronizar en la nube ahora. Intenta nuevamente más tarde.", "warning");
+      }
     }
   });
 }
@@ -1061,6 +1418,12 @@ function renderAdminView(container) {
         </div>
 
         <div class="flex items-center gap-3">
+          ${renderSessionSelectorBlock(true)}
+
+          <button onclick="refreshAdminSubmissions()" class="px-3 py-1.5 rounded-xl bg-cyan-900/40 hover:bg-cyan-900/70 border border-cyan-700/50 text-cyan-300 text-xs font-semibold transition">
+            <i class="fa-solid fa-rotate"></i> Recargar Nube
+          </button>
+
           <button onclick="resetAllSubmissions()" class="px-3 py-1.5 rounded-xl bg-red-900/40 hover:bg-red-900/70 border border-red-700/50 text-red-300 text-xs font-semibold transition">
             <i class="fa-solid fa-rotate-right"></i> Reiniciar Envíos
           </button>
@@ -1109,6 +1472,11 @@ function renderAdminView(container) {
                 <button onclick="inspectCountrySubmissionModal('${country.id}')" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-gray-200 font-semibold text-xs transition flex items-center justify-center gap-2">
                   <i class="fa-solid fa-eye text-amber-400"></i>
                   Ver Alineación & Retroalimentación
+                </button>
+
+                <button onclick="resetCountrySubmission('${country.id}')" class="w-full py-2.5 rounded-xl bg-red-900/40 hover:bg-red-900/70 border border-red-700/50 text-red-300 font-semibold text-xs transition flex items-center justify-center gap-2">
+                  <i class="fa-solid fa-eraser"></i>
+                  Reiniciar Equipo
                 </button>
               </div>
             `;
@@ -1387,21 +1755,53 @@ function toggleDebateTimer() {
   }
 }
 
+function resetCountrySubmission(countryId) {
+  const country = MUNDIAL_DATA.countries[countryId];
+  if (!country) return;
+
+  Swal.fire({
+    title: `¿Reiniciar ${country.name}?`,
+    text: "Se borrará la alineación de este equipo y volverá a estado pendiente.",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Sí, reiniciar equipo",
+    confirmButtonColor: "#ef4444"
+  }).then(async result => {
+    if (!result.isConfirmed) return;
+
+    state.submissions[countryId] = buildEmptySubmission(countryId);
+    saveSubmissionsToStorage();
+    const cloudSaved = await saveCountrySubmissionToCloud(countryId);
+    renderCurrentView();
+
+    if (cloudSaved) {
+      Swal.fire("Equipo reiniciado", `${country.name} fue reiniciado en la nube.`, "success");
+    } else {
+      Swal.fire("Equipo reiniciado localmente", "No se pudo sincronizar el reinicio en la nube ahora.", "warning");
+    }
+  });
+}
+
 // REINICIAR TODOS LOS ENVÍOS DE TORNEO
 function resetAllSubmissions() {
   Swal.fire({
     title: "¿Reiniciar torneo?",
-    text: "Esto borrará todas las alineaciones enviadas por los países.",
+    text: `Esto borrará todas las alineaciones de la sesión ${getCurrentSessionId()}.`,
     icon: "warning",
     showCancelButton: true,
     confirmButtonText: "Sí, reiniciar todo",
     confirmButtonColor: "#ef4444"
-  }).then(result => {
+  }).then(async result => {
     if (result.isConfirmed) {
       state.submissions = {};
       saveSubmissionsToStorage();
+      const cloudReset = await resetSessionInCloud();
       renderCurrentView();
-      Swal.fire("Reiniciado", "El torneo ha sido borrado.", "success");
+      if (cloudReset) {
+        Swal.fire("Reiniciado", `La sesión ${getCurrentSessionId()} fue borrada localmente y en la nube.`, "success");
+      } else {
+        Swal.fire("Reiniciado localmente", "No se pudo reiniciar en la nube ahora.", "warning");
+      }
     }
   });
 }

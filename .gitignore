@@ -22,3 +22,4 @@ __pycache__/
 # Mantener explícitamente los entregables académicos dentro del repo
 !Artículo 6 Sustainability assessment.pdf
 !Mundial_Sostenibilidad_Tarjetas_y_Tablero.docx
+appscript-webapp.js
